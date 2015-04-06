@@ -2,14 +2,16 @@
  *
  * Copyright (c) 2007 Stefan Goessner (goessner.net)
  * Licensed under the MIT (MIT-LICENSE.txt) licence.
+ * 
+ * Modified by: eclivus (2015) to add min and max functions
  */
-function jsonPath(obj, expr, arg) {
+var jsonPath = function (obj, expr, arg) {
    var P = {
       resultType: arg && arg.resultType || "VALUE",
       result: [],
       normalize: function(expr) {
          var subx = [];
-         return expr.replace(/[\['](\??\(.*?\))[\]']/g, function($0,$1){return "[#"+(subx.push($1)-1)+"]";})
+	return expr.replace(/[\[']((\?|(min)|(max))?\(.*?\))[\]']/g, function($0,$1){return "[#"+(subx.push($1)-1)+"]";})
                     .replace(/'?\.'?|\['?/g, ";")
                     .replace(/;;;|;;/g, ";..;")
                     .replace(/;$|'?\]|'$/g, "")
@@ -45,6 +47,22 @@ function jsonPath(obj, expr, arg) {
                P.trace(P.eval(loc, val, path.substr(path.lastIndexOf(";")+1))+";"+x, val, path);
             else if (/^\?\(.*?\)$/.test(loc)) // [?(expr)]
                P.walk(loc, x, val, path, function(m,l,x,v,p) { if (P.eval(l.replace(/^\?\((.*?)\)$/,"$1"),v[m],m)) P.trace(m+";"+x,v,p); });
+            else if (/^min\(.*?\)$/.test(loc)){ // [min(name)]
+		var min=Number.MAX_VALUE,min_e=null;
+		P.walk(loc, x, val, path, function(m,l,x,v,p) {
+			var e_v = P.eval(l.replace(/^min\((.*?)\)$/,"$1"),v[m],m);
+			if (e_v < min){min = e_v;min_e = m }
+		});
+		P.trace(min_e+";"+x,val,path);
+		}
+            else if (/^max\(.*?\)$/.test(loc)){ // [max(name)]
+		var max=Number.MIN_VALUE,max_e=null;
+		P.walk(loc, x, val, path, function(m,l,x,v,p) {
+			var e_v = P.eval(l.replace(/^max\((.*?)\)$/,"$1"),v[m],m);
+			if (e_v > max){max = e_v;max_e = m }
+		});
+		P.trace(max_e+";"+x,val,path);
+		}
             else if (/^(-?[0-9]*):(-?[0-9]*):?([0-9]*)$/.test(loc)) // [start:end:step]  phyton slice syntax
                P.slice(loc, x, val, path);
          }
